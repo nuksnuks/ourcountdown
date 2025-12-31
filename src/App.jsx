@@ -1,8 +1,12 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
-import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, increment } from 'firebase/firestore';
+import { db } from '../firebase';
+import { ref, onValue, runTransaction } from 'firebase/database';
+
+const EMOJIS = [
+  '💑', '👩‍❤️‍👨', '👩‍❤️‍👩', '👨‍❤️‍👨', '💏', '💖', '💕', '💓', '💞', '💘', '💝', '💗', '💟', '🥰', '😍', '😘', '🌹', '🌸', '💐', '🎉', '🎈', '🦄', '🦄'
+];
 
 function getTimeLeft() {
   const target = new Date('2026-01-05T00:00:00');
@@ -16,36 +20,14 @@ function getTimeLeft() {
   return { days, hours, minutes, seconds };
 }
 
-
 function randomBetween(a, b) {
   return Math.random() * (b - a) + a;
 }
 
-const EMOJIS = [
-  '🦄', // unicorn
-  '🫠', // melting face
-  '😂', // laughing
-  '👩‍❤️‍👨', // couple
-  '👩‍❤️‍👩', // couple
-  '💖', // sparkling heart
-  '💕', // two hearts
-  '🌸', // cherry blossom
-  '🥰', // smiling face with hearts
-  '😍', // heart eyes
-  '💐', // bouquet
-  '🌈', // rainbow
-  '✨', // sparkles
-  '🎉', // party popper
-  '🎈', // balloon
-  '🍰', // cake
-  '🍓', // strawberry
-
-];
-
-function Heart({ x, size, duration, id, onEnd, emoji }) {
+function Particle({ x, size, duration, id, onEnd, emoji, turbulence }) {
   return (
     <span
-      className="floating-heart"
+      className={`floating-heart ${turbulence}`}
       style={{
         left: `${x * 100}%`,
         fontSize: `${size}rem`,
@@ -60,10 +42,9 @@ function Heart({ x, size, duration, id, onEnd, emoji }) {
 
 function App() {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft());
-  const [hearts, setHearts] = useState([]);
   const [clickCount, setClickCount] = useState(0);
+  const [particles, setParticles] = useState([]);
   const nextId = useRef(0);
-  const clickDocRef = useRef(doc(db, 'counters', 'clicks'));
 
   // Countdown timer
   useEffect(() => {
@@ -73,45 +54,33 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Firestore click count listener
+  // Firebase Realtime Database click counter
   useEffect(() => {
-    // Ensure the doc exists
-    getDoc(clickDocRef.current).then((snap) => {
-      if (!snap.exists()) {
-        setDoc(clickDocRef.current, { count: 0 });
-      }
-    });
-    // Listen for real-time updates
-    const unsub = onSnapshot(clickDocRef.current, (docSnap) => {
-      if (docSnap.exists()) {
-        setClickCount(docSnap.data().count || 0);
-      }
+    const countRef = ref(db, 'universalClickCount');
+    const unsub = onValue(countRef, (snap) => {
+      setClickCount(snap.exists() ? snap.val() : 0);
     });
     return () => unsub();
   }, []);
 
-  const handleScreenClick = async (e) => {
-    // Place heart at random horizontal position (relative to viewport)
-    const x = randomBetween(0.05, 0.95);
-    const size = randomBetween(1.5, 2.5);
-    const duration = randomBetween(1.8, 2.7);
+  const handleScreenClick = () => {
+    // Add floating emoji particle
+    const x = randomBetween(0.05, 0.45);
+    const size = randomBetween(1.5, 4.5);
+    const duration = randomBetween(2.8, 4.2);
     const id = nextId.current++;
     const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    setHearts((h) => [...h, { x, size, duration, id, emoji }]);
-    // Increment click count in Firestore
-    try {
-      await updateDoc(clickDocRef.current, { count: increment(1) });
-    } catch (err) {
-      // If doc doesn't exist, create it
-      await setDoc(clickDocRef.current, { count: 1 });
-    }
+    const turbulence = Math.random() > 0.5 ? 'turbulence-left' : 'turbulence-right';
+    setParticles((h) => [...h, { x, size, duration, id, emoji, turbulence }]);
+    // Increment click count in Firebase
+    const countRef = ref(db, 'universalClickCount');
+    runTransaction(countRef, (current) => (current || 0) + 1);
   };
 
-  const handleHeartEnd = (id) => {
-    setHearts((h) => h.filter((heart) => heart.id !== id));
+  const handleParticleEnd = (id) => {
+    setParticles((h) => h.filter((p) => p.id !== id));
   };
 
-  // Full-page wrapper for hearts
   return (
     <div
       className="hearts-fullpage-wrapper"
@@ -124,13 +93,14 @@ function App() {
         zIndex: 10,
         overflow: 'hidden',
         cursor: 'pointer',
+        background: 'linear-gradient(135deg, #23272f 0%, #181c20 100%)',
       }}
     >
-      {/* Hearts float over everything */}
-      {hearts.map((heart) => (
-        <Heart key={heart.id} {...heart} onEnd={handleHeartEnd} />
+      {/* Floating emoji particles */}
+      {particles.map((p) => (
+        <Particle key={p.id} {...p} onEnd={handleParticleEnd} />
       ))}
-      {/* Centered countdown container, pointer-events none so click passes through */}
+      {/* Centered countdown and click counter */}
       <div
         className="countdown-container"
         style={{
@@ -140,27 +110,33 @@ function App() {
           transform: 'translate(-50%, -50%)',
           zIndex: 20,
           pointerEvents: 'none',
+          background: 'rgba(35, 39, 47, 0.95)',
+          borderRadius: '1.5rem',
+          padding: '2.5rem 2rem',
+          boxShadow: '0 4px 24px #000a',
+          textAlign: 'center',
+          maxWidth: 400,
         }}
       >
         {timeLeft ? (
           <>
-            <div className="countdown-timer">
+            <div className="countdown-timer" style={{fontSize: '2.5rem', fontWeight: 'bold', color: '#ffb6e6', margin: '1.5rem 0'}}>
               <span>{timeLeft.days}d</span> :
               <span>{timeLeft.hours}h</span> :
               <span>{timeLeft.minutes}m</span> :
               <span>{timeLeft.seconds}s</span>
             </div>
-            <h2>Until we see each other! 💖</h2>
-            <h3>January 5, 2026</h3>
+            <h2 style={{color: '#ffd6f6'}}>Until we meet! 💖</h2>
+            <h3 style={{color: '#ffd6f6'}}>January 5, 2026</h3>
           </>
         ) : (
           <>
-            <h1>Today is the day! 🎉</h1>
-            <p>Glæder mig til at se dig 💖</p>
+            <h1>It's the day! 🎉</h1>
           </>
         )}
         <div className="click-counter" style={{marginTop: '2rem', fontSize: '1.2rem', color: '#ffd6f6'}}>
-          <strong>{clickCount}</strong> times we thought of each other 💭
+          <strong>Click anywhere</strong> to send a loving thought!<br />
+          <strong>{clickCount}</strong> times we though of eachother 💭
         </div>
       </div>
     </div>
