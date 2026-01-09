@@ -9,7 +9,7 @@ const EMOJIS = [
 ];
 
 function getTimeLeft() {
-  const target = new Date('2026-01-05T00:00:00');
+  const target = new Date('2026-01-06T01:00:00');
   const now = new Date();
   const diff = target - now;
   if (diff <= 0) return null;
@@ -24,12 +24,13 @@ function randomBetween(a, b) {
   return Math.random() * (b - a) + a;
 }
 
-function Particle({ x, size, duration, id, onEnd, emoji, turbulence }) {
+function Particle({ x, y, size, duration, id, onEnd, emoji, turbulence }) {
   return (
     <span
       className={`floating-heart ${turbulence}`}
       style={{
-        left: `${x * 100}%`,
+        left: `${x}px`,
+        top: `${y}px`,
         fontSize: `${size}rem`,
         animationDuration: `${duration}s`,
       }}
@@ -63,15 +64,17 @@ function App() {
     return () => unsub();
   }, []);
 
-  const handleScreenClick = () => {
-    // Add floating emoji particle
-    const x = randomBetween(0.05, 0.45);
+  const handleScreenClick = (e) => {
+    // Add floating emoji particle at click position
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const size = randomBetween(1.5, 4.5);
     const duration = randomBetween(2.8, 4.2);
     const id = nextId.current++;
     const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     const turbulence = Math.random() > 0.5 ? 'turbulence-left' : 'turbulence-right';
-    setParticles((h) => [...h, { x, size, duration, id, emoji, turbulence }]);
+    setParticles((h) => [...h, { x, y, size, duration, id, emoji, turbulence }]);
     // Increment click count in Firebase
     const countRef = ref(db, 'universalClickCount');
     runTransaction(countRef, (current) => (current || 0) + 1);
@@ -85,16 +88,6 @@ function App() {
     <div
       className="hearts-fullpage-wrapper"
       onClick={handleScreenClick}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        zIndex: 10,
-        overflow: 'hidden',
-        cursor: 'pointer',
-        background: 'linear-gradient(135deg, #23272f 0%, #181c20 100%)',
-      }}
     >
       {/* Floating emoji particles */}
       {particles.map((p) => (
@@ -103,24 +96,10 @@ function App() {
       {/* Centered countdown and click counter */}
       <div
         className="countdown-container"
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 20,
-          pointerEvents: 'none',
-          background: 'rgba(35, 39, 47, 0.95)',
-          borderRadius: '1.5rem',
-          padding: '2.5rem 2rem',
-          boxShadow: '0 4px 24px #000a',
-          textAlign: 'center',
-          maxWidth: 400,
-        }}
       >
         {timeLeft ? (
           <>
-            <div className="countdown-timer" style={{fontSize: '2.5rem', fontWeight: 'bold', color: '#ffb6e6', margin: '1.5rem 0'}}>
+            <div className="countdown-timer">
               <span>{timeLeft.days}d</span> :
               <span>{timeLeft.hours}h</span> :
               <span>{timeLeft.minutes}m</span> :
@@ -134,7 +113,7 @@ function App() {
             <h1>It's the day! 🎉</h1>
           </>
         )}
-        <div className="click-counter" style={{marginTop: '2rem', fontSize: '1.2rem', color: '#ffd6f6'}}>
+        <div className="click-counter">
           <strong>Click anywhere</strong> to send a loving thought!<br />
           <strong>{clickCount}</strong> times we though of eachother 💭
         </div>

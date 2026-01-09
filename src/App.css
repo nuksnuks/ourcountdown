@@ -1,16 +1,59 @@
-#root {
-  min-height: 100vh;
+#hearts-fullpage-wrapper, .hearts-fullpage-wrapper, body {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.poiret-one-regular {
+  font-family: "Poiret One", sans-serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
+
+
+#hearts-fullpage-wrapper, .hearts-fullpage-wrapper {
+  font-family: "Poiret One", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  overflow: hidden;
+  cursor: pointer;
+  background-image: url('./assets/background.jpg');
+  background-size: cover;
+}
+
+.countdown-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: none;
+  background: rgba(35, 39, 47, 0.95);
+  border-radius: 1.5rem;
+  padding: 2.5rem 1rem;
+  box-shadow: 0 4px 24px #000a;
+  text-align: center;
+  max-width: 400px;
+}
+
+.countdown-timer {
+
+}
+
+.click-counter {
+  margin-top: 2rem;
+
+}
 .floating-heart {
   position: fixed;
-  bottom: 0;
   user-select: none;
   pointer-events: none;
   will-change: transform, opacity;
   animation: heart-float-up linear forwards;
-  filter: drop-shadow(0 2px 8px #ffb6e6cc);
-  z-index: 15;
 }
 
 .turbulence-left {
@@ -62,19 +105,6 @@
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
 @keyframes logo-spin {
